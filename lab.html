@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en" style="background:#F4F0F6">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F4F0F6" id="tc">
+<title>Bezel Lab</title>
+<style>
+:root{--pink:#EC008C;--page:#F4F0F6;--ink:#211A24;--soft:#625A68}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--page);color:var(--ink);font:15px/1.4 -apple-system,system-ui,sans-serif;min-height:100vh}
+#tint{position:fixed;left:0;right:0;top:0;height:max(env(safe-area-inset-top),1px);background:var(--page);z-index:50}
+#sticky{position:sticky;top:0;z-index:40;background:var(--page);padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;border-bottom:1px solid rgba(0,0,0,.06)}
+#sticky b{font-size:17px}
+#state{font:600 13px ui-monospace,Menlo,monospace;color:var(--soft);margin-top:4px}
+main{padding:14px 16px 120px}
+h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);margin:22px 0 8px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button,a.btn{display:block;width:100%;padding:13px 10px;border-radius:12px;border:1px solid #DED6E4;background:#fff;color:var(--ink);font:600 14px -apple-system,system-ui,sans-serif;text-align:center;text-decoration:none}
+button.pk{background:var(--pink);color:#fff;border-color:var(--pink)}
+p.note{color:var(--soft);font-size:13px;margin:6px 0 0}
+#log{font:12px ui-monospace,Menlo,monospace;color:var(--soft);white-space:pre-wrap;margin-top:14px}
+.filler{height:900px;border-radius:12px;background:repeating-linear-gradient(180deg,#fff 0 60px,#F7F3F9 60px 120px);margin-top:16px}
+</style>
+</head>
+<body>
+<div id="tint"></div>
+<div id="sticky"><b>Bezel Lab</b> <span id="mode"></span><div id="state"></div></div>
+<main>
+  <p class="note">Record the screen, then tap one pair at a time: Pink, wait 2 s, White, wait 2 s. Watch the bezel (status bar). Note which method follows at once, late, or never.</p>
+
+  <h2>1 · Fixed top strip colour (what the app does today)</h2>
+  <div class="row"><button class="pk" data-m="fixed" data-c="pink">Pink</button><button data-m="fixed" data-c="page">White</button></div>
+
+  <h2>2 · Sticky header background</h2>
+  <div class="row"><button class="pk" data-m="sticky" data-c="pink">Pink</button><button data-m="sticky" data-c="page">White</button></div>
+
+  <h2>3 · html + body background</h2>
+  <div class="row"><button class="pk" data-m="root" data-c="pink">Pink</button><button data-m="root" data-c="page">White</button></div>
+
+  <h2>4 · theme-color meta</h2>
+  <div class="row"><button class="pk" data-m="meta" data-c="pink">Pink</button><button data-m="meta" data-c="page">White</button></div>
+
+  <h2>5 · All of 1–4 together</h2>
+  <div class="row"><button class="pk" data-m="all" data-c="pink">Pink</button><button data-m="all" data-c="page">White</button></div>
+
+  <h2>6 · 1–4 together + scroll nudge (1 px down, back)</h2>
+  <div class="row"><button class="pk" data-m="nudge" data-c="pink">Pink</button><button data-m="nudge" data-c="page">White</button></div>
+
+  <h2>7 · 1–4 together + replace the strip with a new element</h2>
+  <div class="row"><button class="pk" data-m="replace" data-c="pink">Pink</button><button data-m="replace" data-c="page">White</button></div>
+
+  <h2>8 · Page change (a real navigation)</h2>
+  <div class="row"><a class="btn" href="lab2.html">Go to pink page →</a><a class="btn" href="lab2.html?late=1">Pink page, colour set late</a></div>
+  <p class="note">The pink page paints pink in its very first frame (left) or only 400 ms after load (right). Use its Back link to return.</p>
+
+  <div id="log"></div>
+  <div class="filler"></div>
+</main>
+<script>
+const C = { pink:"#EC008C", page:"#F4F0F6" };
+const $ = id => document.getElementById(id);
+const t0 = performance.now();
+const standalone = window.navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+$("mode").textContent = standalone ? "· home-screen app" : "· Safari tab";
+function log(s){ $("log").textContent = `${((performance.now() - t0) / 1000).toFixed(2)}s  ${s}\n` + $("log").textContent; }
+function setFixed(c){ $("tint").style.background = c; }
+function setSticky(c){ $("sticky").style.background = c; }
+function setRoot(c){ document.documentElement.style.background = c; document.body.style.background = c; }
+function setMeta(c){ $("tc").setAttribute("content", c); }
+function apply(m, key){
+  const c = C[key];
+  if (m === "fixed") setFixed(c);
+  if (m === "sticky") setSticky(c);
+  if (m === "root") setRoot(c);
+  if (m === "meta") setMeta(c);
+  if (["all","nudge","replace"].includes(m)){ setFixed(c); setSticky(c); setRoot(c); setMeta(c); }
+  if (m === "nudge"){ const y = scrollY; scrollTo(0, y + 1); requestAnimationFrame(() => scrollTo(0, y)); }
+  if (m === "replace"){ const old = $("tint"); const n = old.cloneNode(); n.style.background = c; old.replaceWith(n); }
+  $("state").textContent = `${m} → ${key}  (${new Date().toLocaleTimeString()})`;
+  log(`${m} → ${key}`);
+}
+document.querySelectorAll("button[data-m]").forEach(b => b.addEventListener("click", () => apply(b.dataset.m, b.dataset.c)));
+log(`loaded (${standalone ? "standalone" : "tab"}), safe-area top = ${getComputedStyle($("tint")).height}`);
+</script>
+</body>
+</html>
