@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#EC008C" id="tc">
+<title>Bezel Lab · pink page</title>
+<script>
+  // late=1: the page starts white and turns pink 400 ms after load (like a module whose header paints late)
+  window.LATE = new URLSearchParams(location.search).get("late") === "1";
+  document.documentElement.style.background = LATE ? "#F4F0F6" : "#EC008C";
+  if (LATE) document.getElementById("tc")?.setAttribute("content", "#F4F0F6");
+</script>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:15px/1.4 -apple-system,system-ui,sans-serif;color:#211A24;background:transparent;min-height:100vh}
+#tint{position:fixed;left:0;right:0;top:0;height:max(env(safe-area-inset-top),1px);z-index:50}
+header{position:sticky;top:0;z-index:40;color:#fff;padding:calc(env(safe-area-inset-top) + 14px) 16px 16px}
+header b{font-size:20px}
+main{background:#F4F0F6;padding:16px;min-height:120vh}
+a{display:block;padding:13px;border-radius:12px;background:#fff;border:1px solid #DED6E4;color:#211A24;text-decoration:none;text-align:center;font-weight:600}
+p{color:#625A68;font-size:13px}
+</style>
+</head>
+<body>
+<div id="tint"></div>
+<header id="hd"><b>Pink page</b><div id="st" style="font:600 12px ui-monospace,Menlo,monospace;opacity:.85"></div></header>
+<main>
+  <a href="bezellab.html">← Back to the white page</a>
+  <p>Left link: pink from the very first frame. Right link (late=1): white first, pink 400 ms after load — compare how the bezel follows.</p>
+</main>
+<script>
+  const paint = c => { document.getElementById("tint").style.background = c; document.getElementById("hd").style.background = c;
+    document.documentElement.style.background = c; document.getElementById("tc").setAttribute("content", c); };
+  if (window.LATE){ paint("#F4F0F6"); document.getElementById("hd").style.color = "#211A24"; addEventListener("load", () => setTimeout(() => { paint("#EC008C"); document.getElementById("hd").style.color = "#fff"; document.getElementById("st").textContent = "turned pink at +400 ms"; }, 400)); }
+  else { paint("#EC008C"); document.getElementById("st").textContent = "pink from the first frame"; }
+</script>
+</body>
+</html>
