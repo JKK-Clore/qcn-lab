@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en" style="background:#F4F0F6">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F4F0F6">
+<title>Bezel Tour 2</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:15px/1.4 -apple-system,system-ui,sans-serif;color:#211A24;background:#F4F0F6;min-height:100vh}
+#hd{position:sticky;top:0;z-index:40;background:#F4F0F6;padding:12px 16px}
+#hd b{font-size:17px}
+.layer{position:fixed;left:0;right:0;top:0;z-index:60;pointer-events:none;background:transparent}
+#tall{height:60px}
+#ghost{bottom:0}
+main{padding:16px 16px 140px}
+#expect{margin:6px 0 16px;height:170px;border-radius:18px;display:grid;place-items:center;text-align:center;border:3px solid #211A24;background:#F4F0F6}
+#expect b{display:block;font-size:28px;letter-spacing:.04em}
+#expect span{display:block;font:600 14px ui-monospace,Menlo,monospace;margin-top:6px;padding:0 10px}
+button{display:block;width:100%;padding:15px;border-radius:14px;border:1px solid #211A24;background:#211A24;color:#fff;font:700 16px -apple-system,system-ui,sans-serif;margin-top:10px}
+p{color:#625A68;font-size:13px}
+</style>
+</head>
+<body>
+<div class="layer" id="tall"></div>
+<div class="layer" id="ghost"></div>
+<div id="hd"><b>Bezel Tour 2</b> <span id="mode" style="font:600 12px ui-monospace,Menlo,monospace;opacity:.75"></span></div>
+<main>
+  <div id="expect"><div><b id="exTxt">READY</b><span id="exSub"></span></div></div>
+  <div id="menu">
+    <p>Same as before: start the recording, tap the button, put the phone down (≈ 1 min), send it when it says DONE.</p>
+    <button id="run">▶ Run (≈ 1 min)</button>
+  </div>
+</main>
+<script>
+const P = "#EC008C", W = "#F4F0F6", $ = id => document.getElementById(id);
+$("mode").textContent = (navigator.standalone === true || matchMedia("(display-mode: standalone)").matches) ? "· home-screen app" : "· Safari tab";
+const sleep = ms => new Promise(r => setTimeout(r, ms)), STEP = 1600;
+function expect(col, label){ const pink = col === P; $("expect").style.background = col; $("expect").style.color = pink ? "#fff" : "#211A24";
+  $("exTxt").textContent = pink ? "BEZEL: PINK" : "BEZEL: WHITE"; $("exSub").textContent = label; }
+const ghost = $("ghost"), tall = $("tall");
+function resetAll(){ tall.style.background = "transparent"; ghost.style.cssText = ""; ghost.style.background = "transparent"; }
+// A: a TALL fixed strip (60 px, not 1 px) — does a fixed element work when it has real height?
+// B: a full-screen fixed layer with PINK background but opacity 0 — nothing pink is visible; does iOS still tint pink?
+// C: same, visibility:hidden.   D: same, display:none (control — should never tint).
+// E: the B layer turned back to transparent background while still opacity 0 (the fix candidate for the sign-in screen).
+const TESTS = [
+  ["A tall fixed strip 60px", async k => { tall.style.background = P; expect(P, `A tall fixed strip · ${k}/3`); await sleep(STEP); tall.style.background = W; expect(W, `A tall fixed strip · ${k}/3`); await sleep(STEP); tall.style.background = "transparent"; }],
+  ["B pink layer, opacity 0", async k => { ghost.style.background = P; ghost.style.opacity = "0"; expect(W, `B invisible pink layer (opacity 0) · ${k}/3 — watch for PINK`); await sleep(STEP); resetAll(); expect(W, `B · off · ${k}/3`); await sleep(STEP); }],
+  ["C pink layer, visibility hidden", async k => { ghost.style.background = P; ghost.style.visibility = "hidden"; expect(W, `C invisible pink layer (visibility:hidden) · ${k}/3 — watch for PINK`); await sleep(STEP); resetAll(); expect(W, `C · off · ${k}/3`); await sleep(STEP); }],
+  ["D pink layer, display none", async k => { ghost.style.background = P; ghost.style.display = "none"; expect(W, `D pink layer display:none (control) · ${k}/3`); await sleep(STEP); resetAll(); expect(W, `D · off · ${k}/3`); await sleep(STEP); }],
+  ["E opacity 0, background cleared", async k => { ghost.style.background = P; ghost.style.opacity = "0"; await sleep(80); ghost.style.background = "transparent"; expect(W, `E opacity 0 + background cleared · ${k}/3`); await sleep(STEP); resetAll(); expect(W, `E · off · ${k}/3`); await sleep(STEP); }],
+];
+$("run").onclick = async () => {
+  $("menu").hidden = true;
+  for (const [, fn] of TESTS){ resetAll(); expect(W, "reset"); await sleep(STEP); for (let k = 1; k <= 3; k++) await fn(k); }
+  resetAll(); expect(W, "DONE — stop the recording"); $("exTxt").textContent = "DONE";
+};
+</script>
+</body>
+</html>
