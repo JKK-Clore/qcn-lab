@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F4F0F6" id="tc">
+<title>Bezel Tour</title>
+<script>
+// One file for every step. ?c=p|w (page colour) &v=<variant> &i=<hop> — a hop to the next URL is a real navigation (new document).
+// Variants of a page change: plain (right colour in the first frame) · vt (+ cross-document view transition, like the app)
+// · late (opposite colour first, right colour 400 ms after load, like a page whose JS paints the header).
+// No query = the menu / in-page cycle.
+(function(){
+  const q = new URLSearchParams(location.search);
+  window.TOUR = { c:q.get("c"), v:q.get("v"), i:+(q.get("i")||0) };
+  const P = "#EC008C", W = "#F4F0F6";
+  const want = TOUR.c === "p" ? P : W, other = TOUR.c === "p" ? W : P;
+  const first = TOUR.c ? (TOUR.v === "late" ? other : want) : W;
+  window.FIRST = first;
+  document.documentElement.style.background = first;
+  document.getElementById("tc").setAttribute("content", first);
+  if (TOUR.v === "vt"){ const s = document.createElement("style"); s.textContent = "@view-transition{navigation:auto}"; document.head.appendChild(s); }
+})();
+</script>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:15px/1.4 -apple-system,system-ui,sans-serif;color:#211A24;background:transparent;min-height:100vh}
+#tint{position:fixed;left:0;right:0;top:0;height:max(env(safe-area-inset-top),1px);z-index:50}
+#hd{position:sticky;top:0;z-index:40;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px}
+#hd b{font-size:17px}
+#mode{font:600 12px ui-monospace,Menlo,monospace;opacity:.75}
+main{padding:16px 16px 140px;background:#F4F0F6;min-height:120vh}
+#expect{margin:6px 0 16px;height:150px;border-radius:18px;display:grid;place-items:center;text-align:center;border:3px solid #211A24}
+#expect b{display:block;font-size:30px;letter-spacing:.04em}
+#expect span{display:block;font:600 14px ui-monospace,Menlo,monospace;margin-top:4px}
+button,a.btn{display:block;width:100%;padding:15px;border-radius:14px;border:1px solid #DED6E4;background:#fff;color:#211A24;font:700 16px -apple-system,system-ui,sans-serif;text-align:center;text-decoration:none;margin-top:10px}
+button.go{background:#211A24;color:#fff;border-color:#211A24}
+p{color:#625A68;font-size:13px}
+#log{font:12px ui-monospace,Menlo,monospace;color:#625A68;white-space:pre-wrap;margin-top:12px}
+</style>
+</head>
+<body>
+<div id="tint"></div>
+<div id="hd"><b>Bezel Tour</b> <span id="mode"></span></div>
+<main>
+  <div id="expect"><div><b id="exTxt">READY</b><span id="exSub"></span></div></div>
+  <div id="menu">
+    <p>Start the screen recording first, then tap the black button and put the phone down. It runs by itself for about 2 minutes: the box above always shows the colour the bezel <b>should</b> be right now. Send the recording when it says DONE.</p>
+    <button class="go" id="runAll">▶ Run everything (≈ 2 min)</button>
+    <button id="runNav">▶ Page changes only (≈ 1 min)</button>
+  </div>
+  <div id="log"></div>
+</main>
+<script>
+const P = "#EC008C", W = "#F4F0F6";
+const $ = id => document.getElementById(id);
+const standalone = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+$("mode").textContent = standalone ? "· home-screen app" : "· Safari tab";
+const STEP = 1600, HOPS = 6, NAV_VARIANTS = ["plain", "vt", "late"];
+function expect(col, label){
+  const pink = col === P;
+  $("expect").style.background = col; $("expect").style.color = pink ? "#fff" : "#211A24";
+  $("exTxt").textContent = pink ? "BEZEL: PINK" : "BEZEL: WHITE"; $("exSub").textContent = label;
+}
+function header(col){ $("hd").style.background = col; $("hd").style.color = col === P ? "#fff" : "#211A24"; }
+// channels for the in-page cycle
+const CH = {
+  fixed:  c => { $("tint").style.background = c; },
+  sticky: c => { header(c); },
+  root:   c => { document.documentElement.style.background = c; },
+  meta:   c => { $("tc").setAttribute("content", c); },
+};
+function setAll(c){ Object.values(CH).forEach(f => f(c)); }
+const IN_PAGE = [
+  ["1 fixed strip", c => CH.fixed(c)],
+  ["2 sticky header", c => CH.sticky(c)],
+  ["3 page background", c => CH.root(c)],
+  ["4 theme-color", c => CH.meta(c)],
+  ["5 all of 1-4", c => setAll(c)],
+  ["6 all + scroll nudge", c => { setAll(c); const y = scrollY; scrollTo(0, y + 1); requestAnimationFrame(() => scrollTo(0, y)); }],
+  ["7 all + new strip", c => { setAll(c); const o = $("tint"), n = o.cloneNode(); n.style.background = c; o.replaceWith(n); }],
+];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function navTo(v, i, c){ location.replace(`?c=${c}&v=${v}&i=${i}&t=${Date.now()}`); }
+
+async function runInPage(){
+  $("menu").hidden = true;
+  for (const [name, fn] of IN_PAGE){
+    setAll(W); expect(W, `${name} · reset`); await sleep(STEP);
+    for (let k = 1; k <= 3; k++){
+      fn(P); expect(P, `${name} · ${k}/3`); await sleep(STEP);
+      fn(W); expect(W, `${name} · ${k}/3`); await sleep(STEP);
+    }
+  }
+  setAll(W);
+}
+
+if (TOUR.c){
+  // a hop page
+  const want = TOUR.c === "p" ? P : W;
+  const paint = c => { setAll(c); };
+  paint(FIRST);
+  expect(want, `page change · ${TOUR.v} · hop ${TOUR.i}/${HOPS}`);
+  $("menu").hidden = true;
+  if (TOUR.v === "late") addEventListener("load", () => setTimeout(() => paint(want), 400));
+  setTimeout(() => {
+    const next = TOUR.i + 1;
+    if (next <= HOPS) return navTo(TOUR.v, next, TOUR.c === "p" ? "w" : "p");
+    const vi = NAV_VARIANTS.indexOf(TOUR.v);
+    if (vi + 1 < NAV_VARIANTS.length) return navTo(NAV_VARIANTS[vi + 1], 1, "p");
+    location.replace(location.pathname + "?done=1");
+  }, STEP + (TOUR.v === "late" ? 400 : 0));
+} else {
+  setAll(W);
+  if (new URLSearchParams(location.search).get("done")){ expect(W, "DONE — stop the recording"); $("exTxt").textContent = "DONE"; }
+  $("runAll").onclick = async () => { await runInPage(); navTo("plain", 1, "p"); };
+  $("runNav").onclick = () => { $("menu").hidden = true; navTo("plain", 1, "p"); };
+}
+</script>
+</body>
+</html>
