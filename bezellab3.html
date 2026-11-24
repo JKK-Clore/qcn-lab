@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Same head signals as the live index.html: viewport-fit=cover, a manifest with display:standalone, a theme-color meta for phone widths
+     written by script. The app sets NO apple-mobile-web-app-* tags, so neither does this lab. One file: no ../assets, everything inline. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Bezel Lab 3</title>
+<script>
+(function(){
+  var r = document.documentElement;
+  // index.html head script: navigator.standalone === true -> <html data-ios-app> (iOS home-screen app).
+  try{ if (window.navigator.standalone === true) r.setAttribute("data-ios-app", ""); }catch(e){}
+  // Manifest inline (data: URL). start_url/scope must be absolute -- a relative URL would resolve against the data: URL.
+  try{
+    var base = location.origin + location.pathname;
+    var man = { name:"Bezel Lab 3", short_name:"Bezel 3", start_url: base + "?s=hub", scope: base.replace(/[^\/]*$/, ""),
+      display:"standalone", background_color:"#F2F1EE", theme_color:"#2D3E2C" };   // same display / colours as assets/manifest.webmanifest
+    var l = document.createElement("link"); l.rel = "manifest";
+    l.href = "data:application/manifest+json," + encodeURIComponent(JSON.stringify(man));
+    document.head.appendChild(l);
+  }catch(e){}
+  // index.html: <meta name="theme-color" media="(max-width: 640px)"> created by script, content = the stage colour.
+  var m = document.createElement("meta"); m.name = "theme-color"; m.media = "(max-width: 640px)"; document.head.appendChild(m);
+  window.__themeMeta = m;
+  // Cross-document View Transition direction (assets/client-context.js does this on pagereveal): set by the page we left.
+  addEventListener("pagereveal", function(e){
+    var dir = "forward"; try{ dir = sessionStorage.getItem("bezellab3.dir") || "forward"; }catch(x){}
+    r.setAttribute("data-vt-dir", dir);
+  });
+})();
+</script>
+<style>
+  /* Cloré tokens, copied from assets/client-skins.css + assets/design-tokens.css (values, not references). */
+  :root{
+    --bg:#F4F0F6; --brand:#EC008C; --mark-tile:#E6007E; --ink:#2B2430; --card:#FFFFFF;
+    --scrim:color-mix(in srgb,#2B2430 30%,transparent);
+    --modal-tint:color-mix(in srgb,#2B2430 30%,#EC008C);
+    --motion-push:380ms; --ease-push:cubic-bezier(.32,.72,0,1);
+    --stage:#F4F0F6;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;overflow-x:hidden;overscroll-behavior:none;}
+  html{background:var(--bg);}
+  /* DOCUMENT BACKGROUND = BEZEL (index.html, DESIGN_SPEC 4.6.1 ⑦): in the home-screen app the html background-COLOR is the stage colour,
+     and the visible page colour is a gradient image over it. body is transparent. */
+  html[data-ios-app]{background-color:var(--stage);background-image:linear-gradient(var(--bg),var(--bg));}
+  body{background:transparent;min-height:100vh;min-height:100dvh;font:15px/1.35 -apple-system,system-ui,"Segoe UI",sans-serif;color:var(--ink);
+    -webkit-tap-highlight-color:transparent;}
+
+  /* ---------- hub ---------- */
+  .app{position:relative;}
+  .hdr{position:relative;}
+  /* .hub-wm: the pinned pink strip, position:fixed, z 40, a child of the header (so it rides the header's opacity). Home-screen app: inset 0 -> 52px. */
+  .wm{position:fixed;top:0;left:0;right:0;height:calc(env(safe-area-inset-top,0px) + 52px);padding-top:env(safe-area-inset-top,0px);z-index:40;
+    background:var(--brand);display:flex;align-items:center;justify-content:center;gap:12px;color:#fff;}
+  .wm .logo{font:italic 600 26px/1 "Snell Roundhand","Brush Script MT",cursive;}
+  .wm i{width:1px;height:22px;background:rgba(255,255,255,.7);}
+  .wm .bs{font:700 11px/1 -apple-system,system-ui,sans-serif;letter-spacing:.18em;color:#FFD400;}
+  .greet{margin-top:calc(env(safe-area-inset-top,0px) + 52px);background:#FAF8FB;padding:16px 20px 22px;display:flex;align-items:center;justify-content:space-between;
+    box-shadow:0 1px 0 rgba(43,36,48,.06);}
+  .greet b{display:block;font:800 22px/1.15 -apple-system,system-ui,sans-serif;}
+  .greet b.nm{color:var(--brand);}
+  .av{width:48px;height:48px;border-radius:50%;background:#FBE3F0;color:var(--brand);display:grid;place-items:center;font-weight:700;border:0;font-size:17px;}
+  .hubbody{padding:28px 20px 260px;}
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center;font-size:12px;}
+  .tile{display:block;color:inherit;text-decoration:none;}
+  .tile span{display:grid;place-items:center;aspect-ratio:1;border-radius:18px;background:#fff;box-shadow:0 2px 8px rgba(43,36,48,.06);margin-bottom:6px;color:var(--brand);font-size:22px;}
+  .today{margin-top:28px;background:#fff;border-radius:18px;padding:18px;box-shadow:0 2px 8px rgba(43,36,48,.06);}
+  .today h3{margin:0 0 12px;font-size:17px;}
+  .sk{height:12px;border-radius:6px;background:#EEE9F0;margin:10px 0;}
+  /* Account sheet + its scrim live inside .app (they ride the sign-out fade, as in the app). */
+  .scrim{position:fixed;inset:0;background:var(--scrim);z-index:60;opacity:0;visibility:hidden;}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:61;background:#fff;border-radius:20px 20px 0 0;padding:20px 20px calc(env(safe-area-inset-bottom,0px) + 150px);
+    transform:translateY(110%);}
+  .sheet h4{margin:0 0 14px;font-size:17px;}
+  .sheet .row{padding:14px 0;border-top:1px solid #EEE9F0;font-weight:600;}
+  .sheet .row.out{color:#C0174C;}
+
+  /* ---------- module (Lookup) ---------- */
+  .mod{display:none;}
+  html[data-s="module"] .mod{display:block;}
+  html[data-s="module"] .app{display:none;}
+  html[data-s="module"]{--stage:var(--brand);}
+  .mband{background:var(--brand);padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 22px;color:#fff;}
+  .mrow{display:flex;align-items:center;gap:12px;height:40px;}
+  .mback{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;border:0;font-size:22px;display:grid;place-items:center;text-decoration:none;}
+  .mrow b{font-size:19px;}
+  .msearch{margin-top:14px;height:44px;border-radius:22px;background:#fff;color:#8A8190;display:flex;align-items:center;padding:0 18px;}
+  .mlist{padding:16px 20px 260px;}
+  .mitem{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;}
+
+  /* ---------- #boot overlay: splash (pink + veil) / sign-in ---------- */
+  #boot{position:fixed;inset:0;z-index:50;background:var(--bg);display:none;}
+  #boot .pk{position:absolute;inset:0;background:var(--mark-tile);display:grid;place-items:center;}
+  .blocks{display:grid;grid-template-columns:repeat(3,34px);gap:6px;}
+  .blocks i{width:34px;height:34px;border-radius:7px;background:#fff;opacity:.92;}
+  .blocks i:nth-child(2n){opacity:.55;}
+  #boot .veil{position:absolute;inset:0;background:var(--bg);opacity:0;}
+  #boot .login{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 120px) 24px 0;opacity:0;}
+  .login .mark{font:italic 600 40px/1 "Snell Roundhand","Brush Script MT",cursive;color:var(--brand);}
+  .login .card{margin-top:28px;width:100%;max-width:360px;background:#fff;border-radius:20px;padding:20px;box-shadow:0 6px 20px rgba(43,36,48,.08);}
+  .login .in{height:46px;border-radius:12px;border:1px solid #E3DCE6;margin-bottom:12px;}
+  .login .btn{height:46px;border-radius:23px;background:#fff;box-shadow:0 2px 8px rgba(43,36,48,.12);display:grid;place-items:center;font-weight:700;color:var(--brand);}
+
+  /* ---------- lab chrome: never at the top edge (a fixed box there would be read as the bezel) ---------- */
+  #label{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 66px);z-index:2147483001;pointer-events:none;
+    background:rgba(20,14,24,.78);color:#fff;border-radius:14px;padding:10px 14px;}
+  #label b{display:block;font:800 26px/1.1 -apple-system,system-ui,sans-serif;}
+  #label span{display:block;font:600 13px/1.3 ui-monospace,Menlo,monospace;opacity:.85;margin-top:4px;}
+  #panel{position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:2147483001;background:rgba(255,255,255,.96);
+    border-radius:16px;padding:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);font-size:13px;}
+  #panel .r{display:flex;gap:6px;margin-bottom:6px;}
+  #panel button{flex:1;min-height:40px;border-radius:10px;border:1px solid #D9D1DD;background:#fff;color:#211A24;font:700 13px -apple-system,system-ui,sans-serif;padding:4px;}
+  #panel button.on{background:#211A24;color:#fff;border-color:#211A24;}
+  #panel button:disabled{opacity:.4;}
+  #log{font:11px/1.3 ui-monospace,Menlo,monospace;color:#5D5463;min-height:28px;white-space:pre-wrap;}
+  #panel.min .hide-min{display:none;}
+
+  /* ---------- cross-document transition: the phone push/pop of assets/design-tokens.css, verbatim ---------- */
+  @view-transition{navigation:auto;}
+  ::view-transition-group(root){animation-duration:var(--motion-push);animation-timing-function:var(--ease-push);}
+  ::view-transition,::view-transition-group(root){background:var(--brand);}
+  ::view-transition-image-pair(root){background:linear-gradient(var(--brand),var(--brand)) 0 0 / 100% calc(env(safe-area-inset-top,0px) + 52px) no-repeat,linear-gradient(#000,#000) var(--brand);}
+  ::view-transition-old(root){animation-name:qcn-push-out;mix-blend-mode:normal;}
+  ::view-transition-new(root){animation-name:qcn-push-in;mix-blend-mode:normal;}
+  html[data-vt-dir="back"]::view-transition-old(root){animation-name:qcn-pop-out;z-index:1;}
+  html[data-vt-dir="back"]::view-transition-new(root){animation-name:qcn-pop-in;}
+  @keyframes qcn-push-out{to{opacity:.88;transform:translateX(-30%);}}
+  @keyframes qcn-push-in{from{transform:translateX(100%);}}
+  @keyframes qcn-pop-out{to{transform:translateX(100%);}}
+  @keyframes qcn-pop-in{from{opacity:.88;transform:translateX(-30%);}}
+  html[data-slow]{--motion-push:1520ms;}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="hdr" id="hdr">
+    <div class="wm" id="wm"><span class="logo">Cloré</span><i></i><span class="bs">BEAUTY SUPPLY</span></div>
+    <div class="greet"><div><b>Good morning,</b><b class="nm">Bella!</b></div><button class="av" id="avatar" type="button">BE</button></div>
+  </div>
+  <div class="hubbody" id="hubBody">
+    <div class="tiles">
+      <a class="tile" id="toLookup" href="?s=module"><span>&#9906;</span>Lookup</a>
+      <a class="tile" href="#"><span>&#9873;</span>Labels</a>
+      <a class="tile" href="#"><span>&#9635;</span>Receiving</a>
+      <a class="tile" href="#"><span>&#9638;</span>Restocking</a>
+    </div>
+    <div class="today"><h3>Today</h3><div class="sk" style="width:70%"></div><div class="sk" style="width:45%"></div><div class="sk" style="width:62%"></div></div>
+  </div>
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet" id="sheet"><h4>Account</h4><div class="row">Change password</div><div class="row out">Sign out</div></div>
+</div>
+
+<div class="mod" id="mod">
+  <div class="mband"><div class="mrow"><a class="mback" id="modBack" href="?s=hub&amp;ret=1">&#8592;</a><b>Lookup</b></div><div class="msearch">Search SKU, name or barcode</div></div>
+  <div class="mlist"><div class="mitem">C00011567 · Edge gel</div><div class="mitem">C00010402 · Leave-in</div><div class="mitem">C00012011 · Bonnet</div></div>
+</div>
+
+<div id="boot">
+  <div class="pk"><div class="blocks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+  <div class="veil"></div>
+  <div class="login"><div class="mark">Cloré</div><div class="card"><div class="in"></div><div class="in"></div><div class="btn">Sign in</div></div></div>
+</div>
+
+<div id="label"><b id="labT">Bezel Lab 3</b><span id="labS"></span></div>
+
+<div id="panel">
+  <div class="r hide-min">
+    <button type="button" data-mode="current">Current</button>
+    <button type="button" data-mode="fix">Fix</button>
+    <button type="button" data-mode="fixb">Fix B</button>
+    <button type="button" id="slowBtn">Slow &#215;4</button>
+  </div>
+  <div class="r">
+    <button type="button" data-run="A">A Splash</button>
+    <button type="button" data-run="B">B Sign in</button>
+    <button type="button" data-run="C">C Back</button>
+    <button type="button" data-run="D">D Sign out</button>
+  </div>
+  <div class="r hide-min"><button type="button" id="hideBtn">Hide panel 4s</button><button type="button" id="resetBtn">Reset to hub</button></div>
+  <div id="log" class="hide-min"></div>
+</div>
+
+<script>
+(() => {
+  const root = document.documentElement, $ = id => document.getElementById(id);
+  const IOS_APP = root.hasAttribute("data-ios-app");
+  const C = { bg:"#F4F0F6", brand:"#EC008C", mark:"#E6007E" };
+  // Live index.html / design-tokens.css values.
+  const M = { bootExit:280, hubEnter:360, hubEnterDelay:280, overlay:280, small:220, splashRoot:2500 / 1.6, copy:430 / 1.6 };
+  const SPLASH_VEIL_FROM = 0.48, SPLASH_VEIL_TO = 0.66, SPLASH_VEIL_EASE = "cubic-bezier(.7,0,.25,1)", COPY_CUE = 0.65, LEAD = 0.47;
+  const BEZEL_FRAME_LEAD_MS = 8;
+  // index.html easeTimeAt(): the time share at which a CSS easing reaches output y.
+  function easeTimeAt(easing, y){
+    const KW = { ease:[.25,.1,.25,1], linear:[0,0,1,1], "ease-in":[.42,0,1,1], "ease-out":[0,0,.58,1], "ease-in-out":[.42,0,.58,1] };
+    const s = String(easing || "").trim(); let p = KW[s];
+    if (!p){ const m = s.match(/^cubic-bezier\(([^)]+)\)$/); if (m) p = m[1].split(",").map(Number); }
+    if (!p) return y;
+    const B = (t, a, b) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+    let lo = 0, hi = 1; for (let i = 0; i < 40; i++){ const m = (lo + hi) / 2; if (B(m, p[1], p[3]) < y) lo = m; else hi = m; }
+    return B((lo + hi) / 2, p[0], p[2]);
+  }
+
+  // ---- persisted choices ----
+  const LS = k => { try{ return localStorage.getItem("bezellab3." + k); }catch(e){ return null; } };
+  const LSset = (k, v) => { try{ localStorage.setItem("bezellab3." + k, v); }catch(e){} };
+  let mode = LS("mode") || "current";
+  let slow = LS("slow") === "1";
+  const K = () => slow ? 4 : 1;
+  const T = ms => ms * K();
+  if (slow) root.setAttribute("data-slow", "");
+
+  const NAMES = { current:"Current", fix:"Fix", fixb:"Fix B" };
+  const WHAT = {
+    A:{ current:"box over #boot at veil midpoint (56.7%)", fix:"box UNDER #boot at veil start (48%) -- invisible", fixb:"box over #boot at veil start (48%) -- 8pt light strip shows" },
+    B:{ current:"pink box at hub-fade midpoint (~386ms)", fix:"pink box at 75% of hub fade", fixb:"pink box at hub-fade end (~632ms)" },
+    C:{ current:"fresh hub: #boot, then header+tiles fade 280ms", fix:"fresh hub: #boot, then hub whole (no fade)", fixb:"no #boot at all (bfcache-like)" },
+    D:{ current:"page box after hub fade (220ms)", fix:"page box UNDER strip at fade start -- invisible", fixb:"page box over strip at fade start -- visible" },
+  };
+  const TITLES = { A:"A · Splash → Sign in", B:"B · Sign in → Hub", C:"C · Module → Hub (Back)", D:"D · Sign out" };
+  function label(run, extra){
+    $("labT").textContent = run ? `${TITLES[run]} · ${NAMES[mode]}${slow ? " · ×4" : ""}` : `Bezel Lab 3 · ${NAMES[mode]}${slow ? " · ×4" : ""}`;
+    $("labS").textContent = (run ? WHAT[run][mode] : (IOS_APP ? "home-screen app" : "Safari tab -- add to Home Screen to test the app")) + (extra ? " · " + extra : "");
+  }
+  function paintPanel(){
+    document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("on", b.dataset.mode === mode));
+    $("slowBtn").classList.toggle("on", slow);
+  }
+  let logLines = [], t0 = 0;
+  const log = msg => { logLines.push(`${String(Math.round(performance.now() - t0)).padStart(5)}ms ${msg}`); $("log").textContent = logLines.slice(-6).join("\n"); };
+
+  // ---- the bezel signals the app uses ----
+  // Stage = theme-color + (home-screen app) the document background colour. In-place: iOS does not re-read it (4.6.1 ⑧), kept because the app does it.
+  function stage(c){ window.__themeMeta.content = c; root.style.setProperty("--stage", c); }
+  // A NEW fixed box at the very top (the app's #qcnTopTint swapped for a fresh node on every change): 8pt, or 52px for the module-return box.
+  function box(color, z, h){
+    const old = $("tint"); if (old) old.remove();
+    if (!color) return null;
+    const n = document.createElement("div"); n.id = "tint";
+    n.style.cssText = `position:fixed;top:0;left:0;width:100%;height:${h ? `calc(env(safe-area-inset-top,0px) + ${h}px)` : "max(env(safe-area-inset-top,0px),8px)"};z-index:${z};background-color:${color};pointer-events:none;margin:0;padding:0;`;
+    document.body.appendChild(n); return n;
+  }
+  function modalTint(on){
+    const old = $("modalTint"); if (old) old.remove();
+    if (!on) return;
+    const n = document.createElement("div"); n.id = "modalTint";
+    n.style.cssText = "position:fixed;top:0;left:0;width:100%;height:max(env(safe-area-inset-top,0px),8px);z-index:2147483000;background-color:var(--modal-tint);pointer-events:none;";
+    document.body.appendChild(n);
+  }
+  const fade = (el, from, to, dur, easing, delay = 0) => el.animate([{ opacity:from }, { opacity:to }], { duration:dur, easing, delay, fill:"both" });
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const at = (ms, fn) => setTimeout(fn, Math.max(0, ms));
+  let busy = false;
+  const lock = on => { busy = on; document.querySelectorAll("#panel button").forEach(b => b.disabled = on); };
+
+  // ---- static states ----
+  const boot = $("boot"), pk = boot.querySelector(".pk"), veil = boot.querySelector(".veil"), login = boot.querySelector(".login");
+  const app = $("app"), hdr = $("hdr"), body = $("hubBody"), scrim = $("scrim"), sheet = $("sheet");
+  const clearAnims = () => [boot, pk, veil, login, app, hdr, body, scrim, sheet].forEach(el => el.getAnimations().forEach(a => a.cancel()));
+  function showHub(){
+    clearAnims(); boot.style.display = "none"; app.style.visibility = ""; modalTint(false);
+    stage(C.brand); box(C.brand, 41);   // after sign-in the hub keeps data-hub-top: a static 8pt pink box at z 41
+  }
+  function showSplash(){
+    clearAnims(); boot.style.display = "block"; boot.style.background = C.mark; pk.style.display = ""; fade(veil, 0, 0, 1, "linear"); fade(login, 0, 0, 1, "linear");
+    app.style.visibility = "hidden"; modalTint(false);
+    stage(C.mark); box(C.mark, 51);
+  }
+  function showLogin(){
+    clearAnims(); boot.style.display = "block"; boot.style.background = C.bg; pk.style.display = "none"; fade(veil, 1, 1, 1, "linear"); fade(login, 1, 1, 1, "linear");
+    app.style.visibility = "hidden"; modalTint(false);
+    stage(C.bg); box(C.bg, 51);
+  }
+  let state = "hub";
+  const HOLD = 1500;   // real time, not slowed: iOS needs a moment to settle on the starting colour
+
+  // ---- A: splash end -> sign-in (playBootSplash, home-screen app branch) ----
+  async function runA(){
+    showSplash(); label("A", "hold pink"); await sleep(HOLD);
+    t0 = performance.now(); logLines = []; label("A");
+    const V = T(M.splashRoot * (SPLASH_VEIL_TO - SPLASH_VEIL_FROM));                     // 281ms (x4 slow)
+    const lead = T(M.splashRoot * (SPLASH_VEIL_FROM - LEAD));                              // 47% step comes ~16ms before the veil
+    // 47%: stage flips to page under the opaque layers, pink tint leaves (in-place changes; the app does them)
+    stage(C.bg); boot.style.background = C.bg; box(null); log("47%: stage=page, pink tint gone");
+    at(lead, () => { fade(veil, 0, 1, V, SPLASH_VEIL_EASE); log(`veil 0->1 over ${Math.round(V)}ms`); });
+    const mid = lead + V * easeTimeAt(SPLASH_VEIL_EASE, 0.5) - BEZEL_FRAME_LEAD_MS;
+    if (mode === "current") at(mid, () => { box(C.bg, 51); log("page box OVER #boot (veil midpoint)"); });
+    if (mode === "fix") at(lead, () => { box(C.bg, 49); log("page box UNDER #boot (veil start)"); });
+    if (mode === "fixb") at(lead, () => { box(C.bg, 51); log("page box OVER #boot (veil start)"); });
+    at(T(M.splashRoot * (COPY_CUE - LEAD)), () => { fade(login, 0, 1, T(M.copy), "ease"); log("sign-in card in"); });
+    await sleep(T(M.splashRoot * (COPY_CUE - LEAD)) + T(M.copy) + 300);
+    state = "login"; log("done");
+  }
+
+  // ---- B: sign-in -> hub (closeBoot) ----
+  async function runB(){
+    if (state !== "login"){ showLogin(); label("B", "hold sign-in"); await sleep(HOLD); }
+    t0 = performance.now(); logLines = []; label("B");
+    box(null);   // closeBoot(): data-picker-top off
+    app.style.visibility = ""; fade(hdr, 0, 0, 1, "linear"); fade(body, 0, 0, 1, "linear");
+    fade(boot, 1, 0, T(M.bootExit), "ease-in-out"); log("sign-in out");
+    at(T(M.hubEnterDelay), () => { boot.style.display = "none"; log("#boot display:none"); });
+    fade(hdr, 0, 1, T(M.hubEnter), "ease", T(M.hubEnterDelay)); fade(body, 0, 1, T(M.hubEnter), "ease", T(M.hubEnterDelay));
+    const share = mode === "current" ? easeTimeAt("ease", 0.5) : mode === "fix" ? easeTimeAt("ease", 0.75) : 1;
+    at(T(M.hubEnterDelay) + T(M.hubEnter) * share - BEZEL_FRAME_LEAD_MS, () => { stage(C.brand); box(C.brand, 41); log(`pink box + stage=brand (${Math.round(share * 100)}% of fade time)`); });
+    await sleep(T(M.hubEnterDelay + M.hubEnter) + 300);
+    clearAnims(); state = "hub"; log("done");
+  }
+
+  // ---- C: module -> hub, a real page navigation (fresh hub document, as initApp()'s quickReturn) ----
+  function runC(){
+    try{ sessionStorage.setItem("bezellab3.auto", "C"); sessionStorage.setItem("bezellab3.dir", "forward"); }catch(e){}
+    location.href = "?s=module";
+  }
+  async function arriveHubReturn(){
+    t0 = performance.now(); logLines = []; label("C");
+    if (mode === "fixb"){ showHub(); root.removeAttribute("data-s"); log("hub painted whole, no #boot"); return; }
+    // data-hub-return: pink 52px box above an opaque page-colour #boot; header + tiles held at 0 (body.booting)
+    boot.style.display = "block"; boot.style.background = C.bg; pk.style.display = "none"; fade(veil, 1, 1, 1, "linear"); fade(login, 0, 0, 1, "linear");
+    fade(hdr, 0, 0, 1, "linear"); fade(body, 0, 0, 1, "linear");
+    stage(C.brand); box(C.brand, 51, 52); log("#boot + pink 52px box");
+    await sleep(T(150));   // waitForIdentityFonts + waitForIcons
+    // dismissBootImmediately(): #boot and the 52px box go in one task
+    boot.style.display = "none"; box(null);
+    if (mode === "current"){ fade(hdr, 0, 1, T(M.overlay), "ease"); fade(body, 0, 1, T(M.overlay), "ease"); log("boot gone · header+tiles fade 280ms"); }
+    else { hdr.getAnimations().forEach(a => a.cancel()); body.getAnimations().forEach(a => a.cancel()); log("boot gone · hub whole"); }
+    await sleep(T(M.overlay) + 200); log("done");
+  }
+
+  // ---- D: Account sheet open -> Sign out (reopenPicker, home-screen app branch) ----
+  async function runD(){
+    if (state !== "hub"){ showHub(); state = "hub"; label("D", "hold hub"); await sleep(HOLD); }
+    label("D", "open sheet");
+    scrim.style.visibility = "visible"; fade(scrim, 0, 1, T(M.overlay), "ease");
+    sheet.animate([{ transform:"translateY(110%)" }, { transform:"translateY(0)" }], { duration:T(M.overlay), easing:"cubic-bezier(.2,.8,.2,1)", fill:"both" });
+    modalTint(true);   // the app's #qcnModalTint (dim over pink), a new node at the top
+    await sleep(HOLD);
+    t0 = performance.now(); logLines = []; label("D");
+    fade(app, 1, 0, T(M.small), "ease"); log(".app fade out 220ms");
+    const pinkBox = $("tint"); if (pinkBox) fade(pinkBox, 1, 0, T(M.small), "ease");   // body.hub-leaving fades the pink tint too
+    if (mode !== "current"){
+      modalTint(false); stage(C.bg);
+      box(C.bg, mode === "fix" ? 39 : 51); log(mode === "fix" ? "dim strip off · page box UNDER the strip" : "dim strip off · page box OVER the strip");
+    }
+    await sleep(T(M.small));
+    if (mode === "current"){ modalTint(false); stage(C.bg); box(C.bg, 51); log("dim strip off · page box (after fade)"); }
+    app.getAnimations().forEach(a => a.cancel()); app.style.visibility = "hidden";
+    scrim.getAnimations().forEach(a => a.cancel()); scrim.style.visibility = "hidden"; sheet.getAnimations().forEach(a => a.cancel());
+    boot.style.display = "block"; boot.style.background = C.bg; pk.style.display = "none"; fade(veil, 1, 1, 1, "linear");
+    fade(login, 0, 1, T(M.overlay), "ease"); log("sign-in screen in");
+    await sleep(T(M.overlay) + 300);
+    state = "login"; log("done");
+  }
+
+  // ---- wiring ----
+  document.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => { mode = b.dataset.mode; LSset("mode", mode); paintPanel(); label(null); }));
+  $("slowBtn").addEventListener("click", () => { slow = !slow; LSset("slow", slow ? "1" : "0"); root.toggleAttribute("data-slow", slow); paintPanel(); label(null); });
+  $("hideBtn").addEventListener("click", () => { $("panel").style.visibility = "hidden"; setTimeout(() => { $("panel").style.visibility = ""; }, 4000); });
+  $("resetBtn").addEventListener("click", () => { location.href = "?s=hub"; });
+  const RUN = { A:runA, B:runB, C:runC, D:runD };
+  document.querySelectorAll("[data-run]").forEach(b => b.addEventListener("click", async () => {
+    if (busy) return; lock(true);
+    try{ await RUN[b.dataset.run](); }finally{ lock(false); }
+  }));
+  // hub -> module by hand (Lookup tile) and back (← in the module) also work, so the push/pop can be tried without the auto run
+  $("toLookup").addEventListener("click", () => { try{ sessionStorage.setItem("bezellab3.dir", "forward"); }catch(e){} });
+  $("modBack").addEventListener("click", () => { try{ sessionStorage.setItem("bezellab3.dir", "back"); }catch(e){} });
+
+  const q = new URLSearchParams(location.search), s = q.get("s") || "hub";
+  paintPanel();
+  $("log").textContent = "Slow x4 stretches the page only -- iOS's own bar fade (~80ms) is not slowed. Judge timing at 1x, use x4 to see the order.";
+  if (s === "module"){
+    root.setAttribute("data-s", "module"); stage(C.brand); box(C.brand, 41); label(null, "module");
+    let auto = null; try{ auto = sessionStorage.getItem("bezellab3.auto"); sessionStorage.removeItem("bezellab3.auto"); }catch(e){}
+    if (auto === "C"){ lock(true); label("C", "module, going back in 1.5s"); setTimeout(() => { try{ sessionStorage.setItem("bezellab3.dir", "back"); }catch(e){} location.href = "?s=hub&ret=1"; }, HOLD); }
+  } else if (q.get("ret") === "1"){
+    lock(true); arriveHubReturn().finally(() => { lock(false); history.replaceState(null, "", "?s=hub"); });
+  } else {
+    showHub(); label(null);
+  }
+})();
+</script>
+</body>
+</html>
