@@ -5,7 +5,7 @@
 <!-- Same head signals as the live index.html: viewport-fit=cover, a manifest with display:standalone, a theme-color meta for phone widths
      written by script. The app sets NO apple-mobile-web-app-* tags, so neither does this lab. One file: no ../assets, everything inline. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>Bezel Lab 5</title>
+<title>Bezel Lab 5.1</title>
 <script>
 (function(){
   var r = document.documentElement;
@@ -14,7 +14,7 @@
   // Manifest inline (data: URL). start_url/scope must be absolute -- a relative URL would resolve against the data: URL.
   try{
     var base = location.origin + location.pathname;
-    var man = { name:"Bezel Lab 5", short_name:"Bezel 5", start_url: base + "?s=hub", scope: base.replace(/[^\/]*$/, ""),
+    var man = { name:"Bezel Lab 5.1", short_name:"Bezel 5", start_url: base + "?s=hub", scope: base.replace(/[^\/]*$/, ""),
       display:"standalone", background_color:"#F2F1EE", theme_color:"#2D3E2C" };   // same display / colours as assets/manifest.webmanifest
     var l = document.createElement("link"); l.rel = "manifest";
     l.href = "data:application/manifest+json," + encodeURIComponent(JSON.stringify(man));
@@ -176,7 +176,7 @@
   <div class="login"><div class="mark">Cloré</div><div class="card"><div class="in"></div><div class="in"></div><div class="btn">Sign in</div></div></div>
 </div>
 
-<div id="label"><b id="labT">Bezel Lab 5</b><span id="labS"></span></div>
+<div id="label"><b id="labT">Bezel Lab 5.1</b><span id="labS"></span></div>
 
 <div id="panel">
   <div class="r hide-min">
@@ -231,7 +231,7 @@
   const WHAT = {
     A:{ current:"box over #boot at veil midpoint (56.7%)", fix:"box UNDER #boot at veil start (48%) -- invisible", fixb:"box over #boot at veil start (48%) -- 8pt light strip shows",
         fixc:"ride box (veil's opacity) at veil mid - 50ms · static box at veil end",
-        fixd:"bar steps every 100 ms to the veil colour 100 ms ahead (also under Slow ×4) · reset fades on the bar's clock" },
+        fixd:"bar steps every 100 ms to the veil colour 100 ms ahead (also under Slow ×4) · step boxes 6px, under the bar · 2 frames early · reset fades on the bar's clock" },
     B:{ current:"pink box at hub-fade midpoint (~386ms)", fix:"pink box at 75% of hub fade", fixb:"pink box at hub-fade end (~632ms)",
         fixc:"hub fades 100ms linear (the bar's own) as #boot leaves · pink box at its end", fixd:"= Fix C · reset fades on the bar's clock" },
     C:{ current:"fresh hub: #boot, then header+tiles fade 280ms", fix:"fresh hub: #boot, then hub whole (no fade)", fixb:"no #boot at all (bfcache-like)",
@@ -242,7 +242,7 @@
   const TITLES = { A:"A · Splash → Sign in", B:"B · Sign in → Hub", C:"C · Module → Hub (Back)", D:"D · Sign out" };
   function rideOut(){ const n = $("ride"); if (n) n.remove(); boot.classList.remove("ride-on"); }
   function label(run, extra){
-    $("labT").textContent = run ? `${TITLES[run]} · ${NAMES[mode]}${slow ? " · ×4" : ""}` : `Bezel Lab 5 · ${NAMES[mode]}${slow ? " · ×4" : ""}`;
+    $("labT").textContent = run ? `${TITLES[run]} · ${NAMES[mode]}${slow ? " · ×4" : ""}` : `Bezel Lab 5.1 · ${NAMES[mode]}${slow ? " · ×4" : ""}`;
     $("labS").textContent = (run ? WHAT[run][mode] : (IOS_APP ? "home-screen app" : "Safari tab -- add to Home Screen to test the app")) + (extra ? " · " + extra : "");
   }
   function paintPanel(){
@@ -261,7 +261,7 @@
     const old = $("tint"); if (old) old.remove();
     if (!color) return null;
     const n = document.createElement("div"); n.id = "tint";
-    n.style.cssText = `position:fixed;top:0;left:0;width:100%;height:${h ? `calc(env(safe-area-inset-top,0px) + ${h}px)` : "max(env(safe-area-inset-top,0px),8px)"};z-index:${z};background-color:${color};pointer-events:none;margin:0;padding:0;`;
+    n.style.cssText = `position:fixed;top:0;left:0;width:100%;height:${h === "thin" ? "6px" : h ? `calc(env(safe-area-inset-top,0px) + ${h}px)` : "max(env(safe-area-inset-top,0px),8px)"};z-index:${z};background-color:${color};pointer-events:none;margin:0;padding:0;`;
     document.body.appendChild(n); return n;
   }
   function modalTint(on){
@@ -337,10 +337,14 @@
     if (mode === "fixb") at(lead, () => { box(C.bg, 51); log("page box OVER #boot (veil start)"); });
     if (mode === "fixd"){
       // the bar follows the page on the page's own clock, in BEZEL-ms steps (real time): each step's box carries the veil colour BEZEL ms later
+      // D2 (device recording 14:28): the inset-tall step box showed its «100 ms ahead» colour as a ~7pt light strip under the bar,
+      // and the bar trailed the veil by 1-2 frames. Step boxes are now 6px tall (wholly under the opaque bar; Safari reads a box
+      // >= 3px tall within 4px of the top) and fire ~2 frames early.
+      const FIXD_LEAD_MS = 25;
       const n = Math.ceil(V / BEZEL);
       for (let k = 0; k < n; k++){
         const prog = Math.min(1, (k + 1) * BEZEL / V), col = prog >= 1 ? C.bg : mixHex(C.mark, C.bg, easeFwd(SPLASH_VEIL_EASE, prog));
-        at(lead + k * BEZEL - BEZEL_FRAME_LEAD_MS, () => { stage(col); box(col, 51); log(`bar step ${k + 1}/${n} -> ${col.toLowerCase()}`); });
+        at(lead + k * BEZEL - FIXD_LEAD_MS, () => { stage(col); box(col, 51, "thin"); log(`bar step ${k + 1}/${n} -> ${col.toLowerCase()}`); });
       }
       at(lead + V, () => { box(C.bg, 51); log("static page box (veil end)"); });
     }
