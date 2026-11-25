@@ -5,7 +5,7 @@
 <!-- Same head signals as the live index.html: viewport-fit=cover, a manifest with display:standalone, a theme-color meta for phone widths
      written by script. The app sets NO apple-mobile-web-app-* tags, so neither does this lab. One file: no ../assets, everything inline. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>Bezel Lab 5.1</title>
+<title>Bezel Lab 5.2</title>
 <script>
 (function(){
   var r = document.documentElement;
@@ -14,7 +14,7 @@
   // Manifest inline (data: URL). start_url/scope must be absolute -- a relative URL would resolve against the data: URL.
   try{
     var base = location.origin + location.pathname;
-    var man = { name:"Bezel Lab 5.1", short_name:"Bezel 5", start_url: base + "?s=hub", scope: base.replace(/[^\/]*$/, ""),
+    var man = { name:"Bezel Lab 5.2", short_name:"Bezel 5", start_url: base + "?s=hub", scope: base.replace(/[^\/]*$/, ""),
       display:"standalone", background_color:"#F2F1EE", theme_color:"#2D3E2C" };   // same display / colours as assets/manifest.webmanifest
     var l = document.createElement("link"); l.rel = "manifest";
     l.href = "data:application/manifest+json," + encodeURIComponent(JSON.stringify(man));
@@ -176,7 +176,7 @@
   <div class="login"><div class="mark">Cloré</div><div class="card"><div class="in"></div><div class="in"></div><div class="btn">Sign in</div></div></div>
 </div>
 
-<div id="label"><b id="labT">Bezel Lab 5.1</b><span id="labS"></span></div>
+<div id="label"><b id="labT">Bezel Lab 5.2</b><span id="labS"></span></div>
 
 <div id="panel">
   <div class="r hide-min">
@@ -231,7 +231,7 @@
   const WHAT = {
     A:{ current:"box over #boot at veil midpoint (56.7%)", fix:"box UNDER #boot at veil start (48%) -- invisible", fixb:"box over #boot at veil start (48%) -- 8pt light strip shows",
         fixc:"ride box (veil's opacity) at veil mid - 50ms · static box at veil end",
-        fixd:"bar steps every 100 ms to the veil colour 100 ms ahead (also under Slow ×4) · step boxes 6px, under the bar · 2 frames early · reset fades on the bar's clock" },
+        fixd:"bar steps every 100 ms to the veil colour 100 ms ahead (also under Slow ×4) · step boxes 6px, under the bar · 2 frames early · reset: 6px box, curtain starts 6px down and 2 frames later" },
     B:{ current:"pink box at hub-fade midpoint (~386ms)", fix:"pink box at 75% of hub fade", fixb:"pink box at hub-fade end (~632ms)",
         fixc:"hub fades 100ms linear (the bar's own) as #boot leaves · pink box at its end", fixd:"= Fix C · reset fades on the bar's clock" },
     C:{ current:"fresh hub: #boot, then header+tiles fade 280ms", fix:"fresh hub: #boot, then hub whole (no fade)", fixb:"no #boot at all (bfcache-like)",
@@ -242,7 +242,7 @@
   const TITLES = { A:"A · Splash → Sign in", B:"B · Sign in → Hub", C:"C · Module → Hub (Back)", D:"D · Sign out" };
   function rideOut(){ const n = $("ride"); if (n) n.remove(); boot.classList.remove("ride-on"); }
   function label(run, extra){
-    $("labT").textContent = run ? `${TITLES[run]} · ${NAMES[mode]}${slow ? " · ×4" : ""}` : `Bezel Lab 5.1 · ${NAMES[mode]}${slow ? " · ×4" : ""}`;
+    $("labT").textContent = run ? `${TITLES[run]} · ${NAMES[mode]}${slow ? " · ×4" : ""}` : `Bezel Lab 5.2 · ${NAMES[mode]}${slow ? " · ×4" : ""}`;
     $("labS").textContent = (run ? WHAT[run][mode] : (IOS_APP ? "home-screen app" : "Safari tab -- add to Home Screen to test the app")) + (extra ? " · " + extra : "");
   }
   function paintPanel(){
@@ -289,11 +289,15 @@
   // Fix D: the page reaches the new top colour on the bar's own 100ms linear clock. Same task: stage + box + curtain start.
   async function resetTo(color, boxZ, showFn){
     if (mode !== "fixd" || !topColor || topColor.toLowerCase() === color.toLowerCase()){ showFn(); return; }
+    // 5.2 (device recording 14:32): the full-screen curtain touched the top edge, so the bar read the curtain (opacity
+    // animating = ignored) instead of the box and only began ~120ms late, after the curtain was gone; the inset-tall box
+    // showed as a solid line under the bar. Now: a 6px box (under the bar) is the only thing at the top edge, and the
+    // curtain starts 6px down and ~2 frames after the box -- the same lead the splash steps use.
     const c = document.createElement("div"); c.id = "curtain";
-    c.style.cssText = `position:fixed;inset:0;z-index:2147483000;pointer-events:none;background:${color};opacity:0;`;
+    c.style.cssText = `position:fixed;top:6px;left:0;right:0;bottom:0;z-index:2147483000;pointer-events:none;background:${color};opacity:0;`;
     document.body.appendChild(c);
-    const a = c.animate([{ opacity:0 }, { opacity:1 }], { duration:BEZEL, easing:"linear", fill:"both" });
-    stage(color); box(color, boxZ);
+    stage(color); box(color, boxZ, "thin");
+    const a = c.animate([{ opacity:0 }, { opacity:1 }], { duration:BEZEL, delay:25, easing:"linear", fill:"both" });
     await a.finished.catch(() => {});
     showFn(); c.remove();
   }
